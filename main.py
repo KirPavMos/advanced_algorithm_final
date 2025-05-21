@@ -1,3 +1,6 @@
+# Реализовать API на FastAPI для продаж по продавцам WB с возможностью
+# обновления данных
+
 import os
 from datetime import timedelta
 from typing import List, Optional
@@ -21,7 +24,6 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:password@loc
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 API_BASE_URL = "https://analitika.woysa.club/images/panel/json/download/niches.php"
 
-
 # Инициализация FastAPI
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,7 +32,6 @@ async def lifespan(app: FastAPI):
     await FastAPILimiter.init(redis)
     yield
     await FastAPILimiter.close()
-
 
 app = FastAPI(lifespan=lifespan)
 
@@ -46,7 +47,6 @@ app.add_middleware(
 # Настройка базы данных
 Base = declarative_base()
 
-
 # Модели данных
 class Seller(Base):
     __tablename__ = "sellers"
@@ -56,7 +56,6 @@ class Seller(Base):
     seller_rating = Column(Float)
     seller_id = Column(Integer, unique=True)
 
-
 class Shop(Base):
     __tablename__ = "shops"
 
@@ -64,7 +63,6 @@ class Shop(Base):
     shop_name = Column(String, index=True)
     shop_id = Column(Integer, unique=True)
     brand_name = Column(String, index=True)
-
 
 class SKU(Base):
     __tablename__ = "skus"
@@ -77,7 +75,6 @@ class SKU(Base):
     seller_id = Column(Integer, index=True)
     shop_id = Column(Integer, index=True)
 
-
 class SKUStats(Base):
     __tablename__ = "sku_stats"
 
@@ -89,11 +86,9 @@ class SKUStats(Base):
     feedbacks_count = Column(Integer)
     trend = Column(Float)
 
-
 # Асинхронный движок и сессии
 engine = create_async_engine(DATABASE_URL)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
 
 # Схемы Pydantic
 class SellerSchema(BaseModel):
@@ -105,7 +100,6 @@ class SellerSchema(BaseModel):
     class Config:
         from_attributes = True
 
-
 class ShopSchema(BaseModel):
     id: int
     shop_name: str
@@ -114,7 +108,6 @@ class ShopSchema(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 class SKUSchema(BaseModel):
     id: int
@@ -125,7 +118,6 @@ class SKUSchema(BaseModel):
 
     class Config:
         from_attributes = True
-
 
 class SKUStatsSchema(BaseModel):
     id: int
@@ -139,24 +131,20 @@ class SKUStatsSchema(BaseModel):
     class Config:
         from_attributes = True
 
-
 class CategoryResponse(BaseModel):
     sellers: List[SellerSchema]
     shops: List[ShopSchema]
     skus: List[SKUSchema]
     sku_stats: List[SKUStatsSchema]
 
-
 # Вспомогательные функции
 async def get_db():
     async with async_session() as session:
         yield session
 
-
 async def create_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
 
 # API Endpoints
 @app.get("/category/{category_id}", response_model=CategoryResponse)
@@ -232,7 +220,6 @@ async def get_category_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/update_data/{category_id}")
 async def update_category_data(
         category_id: int,
@@ -287,7 +274,6 @@ async def update_category_data(
         raise HTTPException(status_code=e.response.status_code, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 async def process_and_save_data(data: dict, category_id: int, db: AsyncSession):
     """
@@ -362,11 +348,9 @@ async def process_and_save_data(data: dict, category_id: int, db: AsyncSession):
         await db.rollback()
         raise e
 
-
 @app.on_event("startup")
 async def startup_event():
     await create_tables()
-
 
 if __name__ == "__main__":
     import uvicorn
